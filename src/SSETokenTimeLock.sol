@@ -86,8 +86,9 @@ contract SSETokenTimeLock is Ownable {
      */
     function lockedTokens() public view returns (uint256) {
         uint256 balance = timeLockWalletBalance();
+        uint256 available = availableTokens();
 
-        return balance - availableTokens();
+        return (balance > available ? (balance - available) : 0);
     }
 
     /**
