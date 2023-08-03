@@ -59,7 +59,6 @@ contract LockVault {
      * @dev Function can only be called if the tokens are unlocked for the onwer
      */
     modifier checkLockForOwner() {
-        require(lockedAmount > 0, "There is no locked amount");
         require(block.number >= unlockBlockForOwner, "Tokens are still locked");
         _;
     }
