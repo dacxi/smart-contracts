@@ -25,6 +25,8 @@ contract SSETokenTimeLock is Ownable {
     // Number of tokens that has been withdrawn already.
     uint256 public withdrawnTokens;
 
+    bool private reentrancyLock = false; // mutex for reentrancy attack control. See nonReentrant modifier
+
     event TokenWithdrawn(uint indexed previousAmount, uint indexed newAmount);
 
     /**
@@ -40,12 +42,26 @@ contract SSETokenTimeLock is Ownable {
     }
 
     /**
+     * @dev Prevents a contract from calling itself, directly or indirectly.
+     *
+     * @dev Calling a `nonReentrant` function from another `nonReentrant`
+     *      function is not supported.
+     */
+    modifier nonReentrant() {
+        require(!reentrancyLock, "No re-entrancy");
+
+        reentrancyLock = true;
+        _;
+        reentrancyLock = false;
+    }
+
+    /**
      * @dev Withdraws token from wallet if it has enough balance.
      *
      * @param _amount amount of withdrawal.
      * @param _beneficiary destination address.
      */
-    function withdraw(uint256 _amount, address _beneficiary) public onlyOwner {
+    function withdraw(uint256 _amount, address _beneficiary) external nonReentrant onlyOwner {
         require(availableTokens() >= _amount);
 
         uint256 oldAmount = withdrawnTokens;
