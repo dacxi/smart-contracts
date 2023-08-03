@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "https://raw.githubusercontent.com/OpenZeppelin/openzeppelin-contracts/master/contracts/interfaces/IERC20.sol"; // Import the ERC-20 token interface
+
+import "@openzeppelin/contracts/interfaces/IERC20.sol"; // Import the ERC-20 token interface
 
 /**
  * @dev A contract that can lock erc20 tokens for a period of time, allowing a single beneficiary to withdrawal the tokens
@@ -22,11 +23,11 @@ contract LockVault {
     event TokenWithdrawn(address indexed from, uint256 amount);
 
     constructor(
-        address _tokenAddress,
+        IERC20 _tokenAddress,
         address _beneficiary
     ) {
         owner = msg.sender;
-        token = IERC20(_tokenAddress);
+        token = _tokenAddress;
         beneficiary = _beneficiary;
     }
 
