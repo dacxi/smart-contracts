@@ -20,7 +20,7 @@ contract SSETokenTimeLockV2 is Ownable {
     uint256 public immutable periodicReleaseNum;
 
     // Release period in seconds.
-    uint256 public constant PERIOD = 15552000; // (seconds for 6 month)
+    uint256 public constant PERIOD = 3600; // (seconds for 1 hour)
 
     // The token to lock
     IERC20 public immutable token;
