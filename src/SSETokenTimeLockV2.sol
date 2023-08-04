@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 // Developed by dacxi
-// Inspired by smartc contract code from www.soroosh.app
+// Inspired by smart contract code from www.soroosh.app
 
 pragma solidity ^0.8.20;
 
