@@ -67,7 +67,7 @@ contract SSETokenTimeLockV2 is Ownable {
      * @param _beneficiary destination address.
      */
     function withdraw(uint256 _amount, address _beneficiary) external nonReentrant onlyOwner {
-        require(availableTokens() >= _amount);
+        require(availableTokens() >= _amount, "Not enough available amount.");
 
         uint256 oldAmount = withdrawnTokens;
         withdrawnTokens += _amount;
