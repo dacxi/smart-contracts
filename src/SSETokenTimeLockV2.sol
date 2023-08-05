@@ -82,10 +82,12 @@ contract SSETokenTimeLockV2 is Ownable {
      */
     function availableTokens() public view returns (uint256) {
         uint256 currentTime = block.timestamp;
+        uint256 totalSupply = token.totalSupply();
 
         uint256 passedTimeSinceUnlock = (unlockStartTime > currentTime ? 0 : (currentTime - unlockStartTime));
+        uint256 available = (passedTimeSinceUnlock * (periodicReleaseNum / PERIOD)) - withdrawnTokens;
 
-        return (passedTimeSinceUnlock * periodicReleaseNum / PERIOD) - withdrawnTokens;
+        return available > totalSupply ? totalSupply : available;
     }
 
     /**
