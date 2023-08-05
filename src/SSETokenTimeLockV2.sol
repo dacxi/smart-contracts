@@ -84,10 +84,10 @@ contract SSETokenTimeLockV2 is Ownable {
         uint256 currentTime = block.timestamp;
         uint256 totalSupply = token.totalSupply();
 
-        uint256 passedTimeSinceUnlock = (unlockStartTime > currentTime ? 0 : (currentTime - unlockStartTime));
+        uint256 passedTimeSinceUnlock = (unlockStartTime > currentTime) ? 0 : (currentTime - unlockStartTime);
         uint256 available = (passedTimeSinceUnlock * (periodicReleaseNum / PERIOD)) - withdrawnTokens;
 
-        return available > totalSupply ? totalSupply : available;
+        return (available > totalSupply) ? totalSupply : available;
     }
 
     /**
@@ -97,7 +97,7 @@ contract SSETokenTimeLockV2 is Ownable {
         uint256 balance = timeLockWalletBalance();
         uint256 available = availableTokens();
 
-        return (balance > available ? (balance - available) : 0);
+        return (balance > available) ? (balance - available) : 0;
     }
 
     /**
