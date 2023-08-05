@@ -1,67 +1,75 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.16;
+pragma solidity ^0.8.20;
 
-import "./Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/interfaces/IERC20.sol";
 
-interface IBEP20 {
-    function transfer(address recipient, uint256 amount) external returns (bool);
-    function balanceOf(address account) external view returns (uint256);
-}
-
-contract SSETokenTimeLock is Ownable {
+contract SSETokenTimeLockV2 is Ownable {
 
     uint256 public immutable creationTime;
 
-    uint256 private immutable periodicReleaseNum;
+    uint256 public immutable unlockStartTime;
 
-    uint256 public constant PERIOD = 15552000; // (seconds for 6 month)
+    uint256 public immutable periodicReleaseNum;
 
-    uint256 private _withdrawnTokens;
+    uint256 public constant PERIOD = 3600; // (seconds for 1 hour)
 
-    IBEP20 privae immutable _token;
+    IERC20 public immutable token;
+
+    uint256 public withdrawnTokens;
+
+    bool private reentrancyLock = false;
 
     event TokenWithdrawn(uint indexed previousAmount, uint indexed newAmount);
 
-    constructor(IBEP20 token_, uint256 periodicReleaseNum_) {
+    constructor(IERC20 _token, uint256 _periodicReleaseNum, uint256 _unlockAfter) {
         _transferOwnership(msg.sender);
-        _token = token_;
+        token = _token;
         creationTime = block.timestamp;
-        periodicReleaseNum = periodicReleaseNum_;
+        unlockStartTime = creationTime + _unlockAfter;
+        periodicReleaseNum = _periodicReleaseNum;
     }
 
-    function withdraw(uint256 amount_, address beneficiary_) public onlyOwner {
-        require(availableTokens() >= amount_);
-        uint256 oldAmount  = _withdrawnTokens;
-        _withdrawnTokens += amount_;
-        emit TokenWithdrawn(oldAmount, _withdrawnTokens);
-        require(token().transfer(beneficiary_, amount_));
+    modifier nonReentrant() {
+        require(!reentrancyLock, "No re-entrancy");
+
+        reentrancyLock = true;
+        _;
+        reentrancyLock = false;
     }
 
-    function token() public view returns (IBEP20) {
-        return _token;
-    }
+    function withdraw(uint256 _amount, address _beneficiary) external nonReentrant onlyOwner {
+        require(availableTokens() >= _amount, "Not enough available tokens.");
 
-    function getPeriodicReleaseNum() public view returns (uint256) {
-        return periodicReleaseNum;
-    }
+        uint256 oldAmount = withdrawnTokens;
+        withdrawnTokens += _amount;
 
-    function withdrawnTokens() public view returns (uint256) {
-        return _withdrawnTokens;
+        require(token.transfer(_beneficiary, _amount));
+
+        emit TokenWithdrawn(oldAmount, withdrawnTokens);
     }
 
     function availableTokens() public view returns (uint256) {
-        uint256 passedTime = block.timestamp - creationTime;
-        return (passedTime * periodicReleaseNum / PERIOD) - _withdrawnTokens;
+        uint256 currentTime = block.timestamp;
+        uint256 totalSupply = token.totalSupply();
+
+        uint256 passedTimeSinceUnlock = (unlockStartTime > currentTime) ? 0 : (currentTime - unlockStartTime);
+        uint256 available = (passedTimeSinceUnlock * (periodicReleaseNum / PERIOD)) - withdrawnTokens;
+
+        return (available > totalSupply) ? totalSupply : available;
     }
 
     function lockedTokens() public view returns (uint256) {
         uint256 balance = timeLockWalletBalance();
-        return balance - availableTokens();
+        uint256 available = availableTokens();
+
+        return (balance > available) ? (balance - available) : 0;
     }
 
     function timeLockWalletBalance() public view returns (uint256) {
-        uint256 balance = token().balanceOf(address(this));
+        uint256 balance = token.balanceOf(address(this));
+
         return balance;
     }
 }
