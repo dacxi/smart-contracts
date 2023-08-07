@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
 
-contract Lock is Ownable, ReentrancyGuard {
+contract LockV2 is Ownable, ReentrancyGuard {
     struct VestingPeriod {
         uint256 startTime;
         uint256 releaseTime;
