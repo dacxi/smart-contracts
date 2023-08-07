@@ -45,6 +45,7 @@ contract Lock is Ownable, ReentrancyGuard {
 
     function startVesting() external onlyOwner {
         require(!vesting.isInitialized, "Vesting already initialized");
+
         vesting.startTime = block.timestamp;
         vesting.releaseTime = block.timestamp + 365 days;
         vesting.isInitialized = true;
@@ -56,9 +57,10 @@ contract Lock is Ownable, ReentrancyGuard {
         require(msg.sender == beneficiary, "You aren't the beneficiary");
         require(vesting.isInitialized, "Vesting period not initialized");
         require(vesting.initialReleaseAmount > 0, "Initial tokens already released");
-        vesting.releasedTokens += vesting.initialReleaseAmount;
 
         uint256 amountToRelease = vesting.initialReleaseAmount;
+
+        vesting.releasedTokens += amountToRelease;
         vesting.initialReleaseAmount = 0;
 
         IERC20(tokenContract).transfer(beneficiary, amountToRelease);
@@ -73,6 +75,8 @@ contract Lock is Ownable, ReentrancyGuard {
 
         uint256 amountToRelease = vesting.totalTokens - vesting.releasedTokens;
         vesting.releasedTokens += amountToRelease;
+        // update the initialReleaseAmount state in case the beneficiary did not released it yet
+        vesting.initialReleaseAmount = 0;
 
         IERC20(tokenContract).transfer(beneficiary, amountToRelease);
 
