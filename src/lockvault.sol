@@ -13,13 +13,16 @@ contract LockVault {
     IERC20 public token; // ERC-20 token contract
     address public beneficiary; // Address that receives access to tokens in the future
 
-    uint256 public unlockBlock = 0; // Block number after which tokens can be accessed
-    uint256 public unlockBlockForOwner = 0; // Block number after which tokens can be accessed from owner
+    uint256 public unlockTime = 0; // Timestamp number after which tokens can be accessed
+    uint256 public unlockTimeForOwner = 0; // Timestamp after which tokens can be accessed from owner
     uint256 public lockedAmount = 0; // the deposited amount
 
-    bool private callLocked = false; // mutex for reentrancy attack control. See nonReentrant modifier
+    bool private reentrancyLock = false; // mutex for reentrancy attack control. See nonReentrant modifier
 
-    event TokenDeposited(address indexed from, uint256 amount, uint256 unlockBlock, uint256 unlockBlockForOwner);
+    // Number of months over which the deposited tokens be released
+    uint256 public constant LOCK_DURATION = 31708799; // seconds for 12 months
+
+    event TokenDeposited(address indexed from, uint256 amount, uint256 unlockTime, uint256 unlockTimeForOwner);
     event TokenWithdrawn(address indexed from, uint256 amount);
 
     constructor(
@@ -52,7 +55,7 @@ contract LockVault {
      */
     modifier checkLockForBeneficiary() {
         require(lockedAmount > 0, "There is no locked amount");
-        require(block.number >= unlockBlock, "Tokens are still locked");
+        require(block.timestamp >= unlockTime, "Tokens are still locked");
         _;
     }
 
@@ -60,7 +63,7 @@ contract LockVault {
      * @dev Function can only be called if the tokens are unlocked for the onwer
      */
     modifier checkLockForOwner() {
-        require(block.number >= unlockBlockForOwner, "Tokens are still locked");
+        require(block.timestamp >= unlockTimeForOwner, "Tokens are still locked");
         _;
     }
 
@@ -70,27 +73,27 @@ contract LockVault {
      * function is not supported.
      */
     modifier nonReentrant() {
-        require(!callLocked, "No re-entrancy");
+        require(!reentrancyLock, "No re-entrancy");
 
-        callLocked = true;
+        reentrancyLock = true;
         _;
-        callLocked = false;
+        reentrancyLock = false;
     }
 
     /**
      * @dev Deposit and lock the tokens. Only the onwer can call this function.
      * A deposit can only be made if there is no locked amount already in the contract.
      */
-    function depositTokens(uint256 _amount, uint256 _blocksUntilUnlock) external onlyOwner {
+    function depositTokens(uint256 _amount) external onlyOwner {
         require(lockedAmount == 0, "A deposit is already locked");
         require(_amount > 0, "Amount must be greater than zero");
 
         // get the current block
-        uint256 currentBlock = block.number;
+        uint256 currentTime = block.timestamp;
 
         // set the block to unlock the tokens for beneficiary and owner
-        unlockBlock = currentBlock + _blocksUntilUnlock;
-        unlockBlockForOwner = currentBlock + _blocksUntilUnlock + (_blocksUntilUnlock / 2);
+        unlockTime = currentTime + LOCK_DURATION;
+        unlockTimeForOwner = currentTime + LOCK_DURATION + (LOCK_DURATION / 2);
 
         //
         // SECURITY NOTE: We use the checks-effects-interaction pattern here to protect against reentrancy attack.
@@ -100,7 +103,7 @@ contract LockVault {
         // Transfer tokens from the owner to the contract
         token.transferFrom(owner, address(this), lockedAmount);
 
-        emit TokenDeposited(owner, lockedAmount, unlockBlock, unlockBlockForOwner);
+        emit TokenDeposited(owner, lockedAmount, unlockTime, unlockTimeForOwner);
     }
 
     /**
@@ -116,8 +119,8 @@ contract LockVault {
         // we still apply the pattern to make sure no reentrancy attack is possible. Better safe than sorry.
         //
         lockedAmount = 0;
-        unlockBlock = 0;
-        unlockBlockForOwner = 0;
+        unlockTime = 0;
+        unlockTimeForOwner = 0;
 
         // And finally transfer all tokens to the beneficiary
         token.transfer(beneficiary, amountToWithdrawal);
@@ -142,8 +145,8 @@ contract LockVault {
         // we still apply the pattern make sure no reentrancy attack is possible. Better safe than sorry.
         //
         lockedAmount = 0;
-        unlockBlock = 0;
-        unlockBlockForOwner = 0;
+        unlockTime = 0;
+        unlockTimeForOwner = 0;
 
         // And transfer all tokens to the beneficiary
         token.transfer(owner, amountToWithdrawal);
