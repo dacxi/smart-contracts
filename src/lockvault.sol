@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-
+import "@openzeppelin/contracts/access/Ownable.sol"; // Import ownable interface
 import "@openzeppelin/contracts/interfaces/IERC20.sol"; // Import the ERC-20 token interface
 
 /**
- * @dev A contract that can lock erc20 tokens for a period of time, allowing a single beneficiary to withdrawal the tokens
+ * @dev A contract that can lock a pre defined erc20 tokens for a period of time, allowing a single beneficiary to withdrawal the tokens
  * once the lock period ends. Only one beneficiary can exists. But multiple deposits/withdrawal cycles can be made.
  */
-contract LockVault {
-    address public owner; // Address that sends the ERC-20 tokens
+contract LockVault is Ownable {
     IERC20 public token; // ERC-20 token contract
     address public beneficiary; // Address that receives access to tokens in the future
 
+    uint256 public depositAmount = 0; // the total amount the vault will lock in each lock period
     uint256 public unlockTime = 0; // Timestamp number after which tokens can be accessed
     uint256 public unlockTimeForOwner = 0; // Timestamp after which tokens can be accessed from owner
     uint256 public lockedAmount = 0; // the deposited amount
@@ -27,19 +27,13 @@ contract LockVault {
 
     constructor(
         IERC20 _tokenAddress,
-        address _beneficiary
+        address _beneficiary,
+        uint256 _depositAmount
     ) {
-        owner = msg.sender;
+        _transferOwnership(msg.sender);
         token = _tokenAddress;
         beneficiary = _beneficiary;
-    }
-
-    /**
-     * @dev Only the owner of this contract can call those functions
-     */
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Only the owner can perform this action");
-        _;
+        depositAmount = _depositAmount;
     }
 
     /**
@@ -84,9 +78,8 @@ contract LockVault {
      * @dev Deposit and lock the tokens. Only the onwer can call this function.
      * A deposit can only be made if there is no locked amount already in the contract.
      */
-    function depositTokens(uint256 _amount) external onlyOwner {
-        require(lockedAmount == 0, "A deposit is already locked");
-        require(_amount > 0, "Amount must be greater than zero");
+    function initiateLock() external onlyOwner {
+        require(lockedAmount == 0, "A locked deposit is already in place");
 
         // get the current block
         uint256 currentTime = block.timestamp;
@@ -98,12 +91,12 @@ contract LockVault {
         //
         // SECURITY NOTE: We use the checks-effects-interaction pattern here to protect against reentrancy attack.
         //
-        lockedAmount = _amount;
+        lockedAmount = depositAmount;
 
         // Transfer tokens from the owner to the contract
-        token.transferFrom(owner, address(this), lockedAmount);
+        token.transferFrom(owner(), address(this), lockedAmount);
 
-        emit TokenDeposited(owner, lockedAmount, unlockTime, unlockTimeForOwner);
+        emit TokenDeposited(owner(), lockedAmount, unlockTime, unlockTimeForOwner);
     }
 
     /**
@@ -149,8 +142,8 @@ contract LockVault {
         unlockTimeForOwner = 0;
 
         // And transfer all tokens to the beneficiary
-        token.transfer(owner, amountToWithdrawal);
+        token.transfer(owner(), amountToWithdrawal);
 
-        emit TokenWithdrawn(owner, amountToWithdrawal);
+        emit TokenWithdrawn(owner(), amountToWithdrawal);
     }
 }
