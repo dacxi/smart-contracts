@@ -75,7 +75,7 @@ contract LockV2 is Ownable, ReentrancyGuard {
 
         uint256 amountToRelease = vesting.totalTokens - vesting.releasedTokens;
         vesting.releasedTokens += amountToRelease;
-        // update the initialReleaseAmount state in case the beneficiary did not released it yet
+        // update the initialReleaseAmount state in case the beneficiary did not release it yet
         vesting.initialReleaseAmount = 0;
 
         IERC20(tokenContract).transfer(beneficiary, amountToRelease);
